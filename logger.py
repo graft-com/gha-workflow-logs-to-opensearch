@@ -13,10 +13,10 @@ LOGGING_CONFIG = {
             'formatter': 'jsonFormatter',
             'class': 'logging.StreamHandler'
         },
-        'elastic': {
+        'opensearch': {
             'level': "DEBUG",
             'formatter': 'jsonFormatter',
-            'class': 'elastic_handler.ElasticHandler'
+            'class': 'opensearch_handler.SearchHandler'
         }
     },
     'loggers': {
@@ -25,8 +25,8 @@ LOGGING_CONFIG = {
             'level': "DEBUG",
             'propagate': True
         },
-        'elastic': { # elastic logger
-            'handlers': ['elastic'],
+        'opensearch': 
+            'handlers': ['opensearch'],
             'level': "DEBUG",
             'propagate': False
         }

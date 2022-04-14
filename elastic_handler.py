@@ -3,61 +3,53 @@ import logging
 import os
 import datetime
 import sys
+
 # third party
-import elasticsearch
-from elasticsearch.helpers import bulk
+from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
+import boto3
 
-ELASTIC_HOST = os.environ.get("INPUT_ELASTIC_HOST")
-ELASTIC_API_KEY_ID = os.environ.get("INPUT_ELASTIC_API_KEY_ID")
-ELASTIC_API_KEY = os.environ.get("INPUT_ELASTIC_API_KEY")
-ELASTIC_INDEX = os.environ.get("INPUT_ELASTIC_INDEX")
+SEARCH_HOST = os.environ.get("INPUT_SEARCH_HOST")
+SEARCH_INDEX = os.environ.get("INPUT_SEARCH_INDEX")
+SEARCH_REGION = os.environ.get("INPUT_SEARCH_REGION")
 
 try:
-    assert ELASTIC_HOST not in (None, '')
+    assert SEARCH_HOST not in (None, '')
 except:
-    output = "The input ELASTIC_HOST is not set"
+    output = "The input SEARCH_HOST is not set"
     print(f"Error: {output}")
     sys.exit(-1)
 
 try:
-    assert ELASTIC_API_KEY_ID not in (None, '')
-except:
-    output = "The input ELASTIC_API_KEY_ID is not set"
-    print(f"Error: {output}")
-    sys.exit(-1)
-
-try:
-    assert ELASTIC_API_KEY not in (None, '')
-except:
-    output = "The input ELASTIC_API_KEY is not set"
-    print(f"Error: {output}")
-    sys.exit(-1)
-
-try:
-    assert ELASTIC_INDEX not in (None, '')
+    assert SEARCH_INDEX not in (None, '')
     now = datetime.datetime.now()
-    elastic_index = f"{ELASTIC_INDEX}-{now.month}-{now.day}"
+    search_index = f"{SEARCH_INDEX}-{now.month}-{now.day}"
 except:
-    output = "The input ELASTIC_INDEX is not set"
+    output = "The input SEARCH_INDEX is not set"
     print(f"Error: {output}")
     sys.exit(-1)
 
 try:
-    es = elasticsearch.Elasticsearch(
-        [ELASTIC_HOST],
-        api_key=(ELASTIC_API_KEY_ID, ELASTIC_API_KEY),
-        scheme="https"
+    credentials = boto3.Session().get_credentials()
+    auth = AWSV4SignerAuth(credentials, SEARCH_REGION)
+    index_name = "gha"
+
+    search = OpenSearch(
+        hosts = [{'host': SEARCH_HOST, 'port': 443}],
+        http_auth = auth,
+        use_ssl = True,
+        verify_certs = True,
+        connection_class = RequestsHttpConnection
     )
-except elasticsearch.exceptions.AuthorizationException as exc:
-    output = "Authentication to elastic failed"
+except Exception as exc:
+    output = "Authentication to OpenSearch failed"
     print(f"Error: {output}")
     sys.exit(-1)
 
 
-class ElasticHandler(logging.Handler):
+class SearchHandler(logging.Handler):
 
     def __init__(self, *args, **kwargs):
-        super(ElasticHandler, self).__init__(*args, **kwargs)
+        super(SearchHandler, self).__init__(*args, **kwargs)
         self.buffer = []
 
     def emit(self, record):
@@ -65,18 +57,18 @@ class ElasticHandler(logging.Handler):
             record_dict = record.__dict__
             record_dict["@timestamp"] = int(record_dict.pop("created") * 1000)
             self.buffer.append({
-                "_index": elastic_index,
+                "_index": search_index,
                 **record_dict
             })
         except ValueError as e:
-            output = f"Error inserting to Elastic {str(e)}"
+            output = f"Error inserting to OpenSearch {str(e)}"
             print(f"Error: {output}")
             print(f"::set-output name=result::{output}")
             return
 
     def flush(self):
         # if the index is not exist, create it with mapping:
-        if not es.indices.exists(index=elastic_index):
+        if not search.indices.exists(index=search_index):
             mapping = '''
             {  
               "mappings":{  
@@ -88,9 +80,9 @@ class ElasticHandler(logging.Handler):
                   }
                 }
             }'''
-            es.indices.create(index=elastic_index, body=mapping)
-        # commit the logs to elastic
+            es.indices.create(index=search_index, body=mapping)
+        # commit the logs to opensearch
         bulk(
-            client=es,
+            client=search,
             actions=self.buffer
         )

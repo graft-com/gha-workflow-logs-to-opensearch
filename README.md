@@ -1,1 +1,1 @@
-# upload-logs-to-elastic-github-action
+# gha-workflow-logs-to-opensearch
