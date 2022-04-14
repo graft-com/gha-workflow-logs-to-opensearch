@@ -1,4 +1,4 @@
 boto3
-opensearchpy
+opensearch-py
 python-json-logger
 requests
