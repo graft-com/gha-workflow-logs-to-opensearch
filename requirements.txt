@@ -1,3 +1,4 @@
-requests
-elasticsearch
+boto3
+opensearchpy
 python-json-logger
+requests
