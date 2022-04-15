@@ -6,7 +6,7 @@ import sys
 import signal
 import json
 # don't remove, it loads the configuration
-import logger
+import search_handler
 
 
 def main():

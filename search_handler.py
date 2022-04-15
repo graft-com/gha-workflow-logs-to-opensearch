@@ -1,12 +1,17 @@
 # builtins
+import datetime
 import logging
 import os
-import datetime
 import sys
+import traceback
 
 # third party
-from opensearchpy import OpenSearch, RequestsHttpConnection, AWSV4SignerAuth
+from opensearch_logger import OpenSearchHandler
+from requests_aws4auth import AWS4Auth
+
 import boto3
+
+boto3.set_stream_logger(name='boto3', level=0, format_string=None)
 
 SEARCH_HOST = os.environ.get("INPUT_SEARCH_HOST")
 SEARCH_INDEX = os.environ.get("INPUT_SEARCH_INDEX")
@@ -29,60 +34,24 @@ except:
     sys.exit(-1)
 
 try:
-    credentials = boto3.Session().get_credentials()
-    auth = AWSV4SignerAuth(credentials, SEARCH_REGION)
-    index_name = "gha"
+    creds = boto3.Session().get_credentials()
 
-    search = OpenSearch(
-        hosts = [{'host': SEARCH_HOST, 'port': 443}],
-        http_auth = auth,
-        use_ssl = True,
-        verify_certs = True,
-        connection_class = RequestsHttpConnection
+    handler = OpenSearchHandler(
+        index_name=search_index,
+        hosts=[{'host': SEARCH_HOST, 'port': 443}],
+        http_auth=AWS4Auth(creds.access_key, creds.secret_key, SEARCH_REGION, 'es', session_token=creds.token),
+        http_compress=True,
+        use_ssl=True,
     )
+
 except Exception as exc:
     output = "Authentication to OpenSearch failed"
     print(f"Error: {output}")
+    print(f"Exception: {exc}")
+    exc_info = sys.exc_info()
+    print(''.join(traceback.format_exception(*exc_info)))
     sys.exit(-1)
 
-
-class SearchHandler(logging.Handler):
-
-    def __init__(self, *args, **kwargs):
-        super(SearchHandler, self).__init__(*args, **kwargs)
-        self.buffer = []
-
-    def emit(self, record):
-        try:
-            record_dict = record.__dict__
-            record_dict["@timestamp"] = int(record_dict.pop("created") * 1000)
-            self.buffer.append({
-                "_index": search_index,
-                **record_dict
-            })
-        except ValueError as e:
-            output = f"Error inserting to OpenSearch {str(e)}"
-            print(f"Error: {output}")
-            print(f"::set-output name=result::{output}")
-            return
-
-    def flush(self):
-        # if the index is not exist, create it with mapping:
-        if not search.indices.exists(index=search_index):
-            mapping = '''
-            {  
-              "mappings":{  
-                  "properties": {
-                    "@timestamp": {
-                      "type":   "date",
-                      "format": "epoch_millis"
-                    }
-                  }
-                }
-            }'''
-            es.indices.create(index=search_index, body=mapping)
-        # commit the logs to opensearch
-        bulk(
-            client=search,
-            actions=self.buffer
-        )
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(handler)
