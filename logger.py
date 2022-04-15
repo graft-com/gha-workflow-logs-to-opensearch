@@ -25,7 +25,7 @@ LOGGING_CONFIG = {
             'level': "DEBUG",
             'propagate': True
         },
-        'opensearch': 
+        'opensearch': { 
             'handlers': ['opensearch'],
             'level': "DEBUG",
             'propagate': False
