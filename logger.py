@@ -16,7 +16,7 @@ LOGGING_CONFIG = {
         'opensearch': {
             'level': "DEBUG",
             'formatter': 'jsonFormatter',
-            'class': 'opensearch_handler.SearchHandler'
+            'class': 'search_handler.SearchHandler'
         }
     },
     'loggers': {
