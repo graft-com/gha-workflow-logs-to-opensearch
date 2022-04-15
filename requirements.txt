@@ -1,5 +1,3 @@
 boto3
 opensearch-logger
-python-json-logger
-opensearch-py
-requests
+requests_aws4auth
