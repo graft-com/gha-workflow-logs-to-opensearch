@@ -12,17 +12,15 @@ from requests_aws4auth import AWS4Auth
 
 import boto3
 
-logging.getLogger('opensearch').addHandler(logging.StreamHandler(sys.stdout))
-logging.getLogger('opensearch').setLevel(logging.INFO)
+logging.getLogger('opensearch').addHandler(logging.StreamHandler(sys.stderr))
+logging.getLogger('opensearch').setLevel(logging.DEBUG)
 
 #logger.addHandler(handler)
 
 boto3.set_stream_logger(name='boto3', level='DEBUG', format_string=None)
 
-
 SEARCH_HOST = os.environ.get("INPUT_SEARCH_HOST")
 SEARCH_INDEX = os.environ.get("INPUT_SEARCH_INDEX")
-SEARCH_REGION = os.environ.get("INPUT_SEARCH_REGION", os.environ.get("AWS_REGION"))
 
 try:
     assert SEARCH_HOST not in (None, '')
@@ -46,7 +44,9 @@ try:
     handler = OpenSearchHandler(
         index_name=search_index,
         hosts=[{'host': SEARCH_HOST, 'port': 443}],
-        http_auth=AWS4Auth(region=SEARCH_REGION, service='es', refreshable_credentials=creds),
+        http_auth=AWS4Auth(region=os.environ.get('AWS_REGION'),
+            service='es', 
+            refreshable_credentials=creds),
         http_compress=True,
         use_ssl=True,
         raise_on_index_exc=True,
