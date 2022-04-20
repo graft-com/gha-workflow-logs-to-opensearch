@@ -10,8 +10,6 @@ from opensearch_logger import OpenSearchHandler
 from opensearchpy import RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
 
-from pythonjsonlogger import jsonlogger
-
 import boto3
 
 logging.getLogger('opensearch').addHandler(logging.StreamHandler(sys.stdout))
