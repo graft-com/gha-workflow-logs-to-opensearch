@@ -7,15 +7,24 @@ import traceback
 
 # third party
 from opensearch_logger import OpenSearchHandler
+from opensearchpy import RequestsHttpConnection
 from requests_aws4auth import AWS4Auth
+
+from pythonjsonlogger import jsonlogger
 
 import boto3
 
-boto3.set_stream_logger(name='boto3', level=0, format_string=None)
+logging.getLogger('opensearch').addHandler(logging.StreamHandler(sys.stdout))
+logging.getLogger('opensearch').setLevel(logging.INFO)
+
+#logger.addHandler(handler)
+
+boto3.set_stream_logger(name='boto3', level='DEBUG', format_string=None)
+
 
 SEARCH_HOST = os.environ.get("INPUT_SEARCH_HOST")
 SEARCH_INDEX = os.environ.get("INPUT_SEARCH_INDEX")
-SEARCH_REGION = os.environ.get("INPUT_SEARCH_REGION")
+SEARCH_REGION = os.environ.get("INPUT_SEARCH_REGION", os.environ.get("AWS_REGION"))
 
 try:
     assert SEARCH_HOST not in (None, '')
@@ -39,11 +48,13 @@ try:
     handler = OpenSearchHandler(
         index_name=search_index,
         hosts=[{'host': SEARCH_HOST, 'port': 443}],
-        http_auth=AWS4Auth(creds.access_key, creds.secret_key, SEARCH_REGION, 'es', session_token=creds.token),
+        http_auth=AWS4Auth(region=SEARCH_REGION, service='es', refreshable_credentials=creds),
         http_compress=True,
         use_ssl=True,
+        raise_on_index_exc=True,
+        connection_class=RequestsHttpConnection,
     )
-
+    logging.getLogger('opensearch').addHandler(handler)
 except Exception as exc:
     output = "Authentication to OpenSearch failed"
     print(f"Error: {output}")
@@ -52,6 +63,4 @@ except Exception as exc:
     print(''.join(traceback.format_exception(*exc_info)))
     sys.exit(-1)
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(handler)
+
