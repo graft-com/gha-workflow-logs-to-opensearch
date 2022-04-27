@@ -1,4 +1,4 @@
 boto3
 opensearch-logger
 opensearch-py
-requests_aws4auth
+requests_aws4auth==1.1.2
